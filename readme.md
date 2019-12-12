@@ -26,3 +26,14 @@ directory. Note that all the actual data is ignored by git because we don't
 want to commit too much data into this directory.
 
 See `datasets/readme.md` for information on getting them all setup.
+
+## Getting VSCode to cooperate
+
+VS Code (specifically pylint) doesn't really like `cv2` for reasons explained 
+[here](https://github.com/PyCQA/pylint/issues/2426). In short add 
+
+```
+"python.linting.pylintArgs": ["--extension-pkg-whitelist=cv2"]
+```
+
+To your VS code settings and all will be well.
