@@ -21,8 +21,9 @@ To download and setup the file higherachy on linux:
 ```
 cd datasets
 wget ftp://asrl3.utias.utoronto.ca/Devon-Island-Rover-Navigation/rover-traverse/grey-rectified-512x384/grey-rectified-512x384-s00.zip
-mkdir -p devon/s00
-unzip grey-rectified-512x384-s00.zip -d devon/s00/
+mkdir -p devon/imgs
+unzip grey-rectified-512x384-s00.zip -d devon/imgs/
+cd devon
 wget ftp://asrl3.utias.utoronto.ca/Devon-Island-Rover-Navigation/rover-traverse/logs/image-times.txt
 wget ftp://asrl3.utias.utoronto.ca/Devon-Island-Rover-Navigation/rover-traverse/logs/gps-topocentric.txt
 wget ftp://asrl3.utias.utoronto.ca/Devon-Island-Rover-Navigation/rover-traverse/logs/inclinometer-sampled.txt
