@@ -1,0 +1,4 @@
+{
+    // File in which the parameters for the stereo bench can be found.
+    "stereo_bench_params": "stereo_bench_devon.hjson"
+}

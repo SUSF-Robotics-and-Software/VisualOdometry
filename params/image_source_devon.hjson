@@ -1,0 +1,24 @@
+{
+    // Path to the file containing the image times
+    "timeline_file_path": "datasets/devon/image-times.txt",
+
+    // Path to the file containing positional data of the rover
+    "position_data_file_path": "datasets/devon/gps-topocentric.txt"
+
+    // Path to the file containing rotational data of the rover
+    "attitude_data_file_path": "datasets/devon/inclinometer-sampled.txt"
+
+    // Path to the directory containing the images
+    "image_dir_path": "datasets/devon/imgs",
+
+    // Glob pattern for image types in the data directory
+    "image_glob": "*.pgm",
+
+    // Regex pattern for identifying the image camera name and index
+    "image_camera_index_regex": "grey-rectified-(\\w+)-(\\d+).pgm",
+
+    // Camera names for left and right
+    "camera_name_left": "left",
+    "camera_name_right": "right"
+
+}

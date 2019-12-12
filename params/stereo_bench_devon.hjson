@@ -1,0 +1,26 @@
+{
+    // All data sourced from http://asrl.utias.utoronto.ca/datasets/devon-island-rover-navigation/rover-traverse.html
+
+    // Stereo baseline of the bench, distance between the rectified optical 
+    // axes of the left and right cameras.
+    //
+    //  Units: meters
+    "stereo_baseline_m":    0.239977002,
+
+    // Focal length of the rectified cameras in pixels
+    //
+    //  Units: Pixels
+    "focal_length_pixels":  387.599884033,
+
+    // Principle point (image centre) of the rectified cameras.
+    //
+    //  Units: Pixels
+    "principle_point_x_pixels": 253.755615234,
+    "principle_point_y_pixels": 185.114852905,
+
+    // Resolution of the rectified images.
+    //
+    //  Units: Pixels
+    "resolution_x_pixels":      512,
+    "resolution_y_pixels":      384
+}
