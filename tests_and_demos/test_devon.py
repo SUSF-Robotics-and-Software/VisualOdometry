@@ -76,8 +76,11 @@ def cyclic_activity(sim_time_s, vis_odo, rov_pose_est):
     Run the cyclic activity of the test suite
     """
 
+    # Update the sim_time for vis_odo
+    vis_odo.set_sim_time(sim_time_s)
+
     # Step the vis_odo processing
-    vis_odo_status_rpt = vis_odo.step(sim_time_s)
+    vis_odo_status_rpt = vis_odo.get_status_rpt()
 
     # Check for any errors in the status report
     if len(vis_odo_status_rpt) > 0:
@@ -91,7 +94,7 @@ def cyclic_activity(sim_time_s, vis_odo, rov_pose_est):
             return (False, "A critical error occured in vis_odo processing!")
 
     # Get the delta frame step
-    delta_pose_est = vis_odo.get_delta_pose_estimate()
+    delta_pose_est = vis_odo.get_delta_pose_est()
 
     # If there's a new pose estimate transform the current pose by it and
     # inform the user
@@ -118,7 +121,7 @@ def cyclic_activity(sim_time_s, vis_odo, rov_pose_est):
             if image_window.img_window_ref:
                 image_window.img_window_ref.update_image(mosaic)
 
-        print(f"[---] {sim_time_s:.2f}: Rover pose estimate updated")
+        print(f"Pose estimate updated")
 
     # Finally return true with no message
     return (True, "")

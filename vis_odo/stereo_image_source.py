@@ -1,5 +1,5 @@
 """
-The StereoImageSource is a short module to handle image loading for the 
+The StereoImageSource is a short module to handle image loading for the
 vis_odo package. It should be used to either:
 
 1. Load data from a dataset (such as the Devon Island Traverse)
@@ -52,6 +52,7 @@ class StereoImageSource:
         self.last_accessed_index = False
         self.source_type = StereoImageSource.SourceType.NONE
         self.image_size = None
+        self.active = False
 
     @classmethod
     def from_dataset(cls, source_param_file_path):
@@ -144,6 +145,12 @@ class StereoImageSource:
         Get the next pending frame based on the current sim time
         """
 
+        # If not active return None
+        if not self.active:
+            return None
+
+        # TODO: Need to split this into two functions, one for each source type
+
         # Iterating through the reversed timeline we can easily find the
         # most evolved timeline item which has a trigger time lower than
         # the current sim_time.
@@ -156,9 +163,15 @@ class StereoImageSource:
         if "left" not in img_dict.keys() or "right" not in img_dict.keys():
             # TODO: add low level "cannot find both images" log
             return None
-        
+
         # If this found frame is the same as the previous frame
         elif self.last_accessed_index == frame_index:
+            return None
+
+        # Or if the sim_time is greater than the end of the available
+        # simulation time
+        elif self.timeline[-1][0] < sim_time_s:
+            self.active = False
             return None
 
         # Otherwise return the new frame
@@ -174,4 +187,9 @@ class StereoImageSource:
 
             return frame
 
-    
+
+    def activate(self):
+        """
+        Activate the source (start acquisition)
+        """
+        self.active = True
