@@ -9,9 +9,14 @@ from datetime import datetime
 
 import numpy as np
 import cv2 as cv
+import faulthandler
 
 from vis_odo import VisOdo, StereoImageSource, Pose
 import image_window
+
+IMGS_TO_SHOW = "MATCH_STRENGTH" # Either KEYPOINTS, RAW,
+
+faulthandler.enable()
 
 def main():
     """
@@ -87,10 +92,11 @@ def cyclic_activity(sim_time_s, vis_odo, rov_pose_est):
 
         # Format the status report items and print
         for (name, data) in vis_odo_status_rpt.items():
-            print(f"[{'CRT' if data.is_critical else 'WRN'}]"
-                  f"{name}: {data.message}")
+            print(f"[{'CRT' if data['is_critical'] else 'WRN'}]"
+                  f" {name}: {data['message']}")
 
-        if any([d.is_critical for d in vis_odo_status_rpt]):
+        if any([data["is_critical"] for (name, data)
+                in vis_odo_status_rpt.items()]):
             return (False, "A critical error occured in vis_odo processing!")
 
     # Get the delta frame step
@@ -102,19 +108,35 @@ def cyclic_activity(sim_time_s, vis_odo, rov_pose_est):
         rov_pose_est.transform_by_pose(delta_pose_est)
 
         # Get the images used for the estimate and display them
-        last_frame = vis_odo.get_last_frame()
+        current_frame = vis_odo.get_current_frame()
 
-        if last_frame:
+        if current_frame:
 
             # Concat images
-            mosaic = np.hstack((last_frame.img_left, last_frame.img_right))
+            if IMGS_TO_SHOW == "RAW":
+                mosaic = np.hstack((current_frame.img_left,
+                                    current_frame.img_right))
+            elif IMGS_TO_SHOW == "KEYPOINTS":
+                mosaic = np.hstack((
+                    current_frame.imgs_processed["left_with_keypoints"],
+                    current_frame.imgs_processed["right_with_keypoints"]))
+            elif IMGS_TO_SHOW == "MATCH_STRENGTH":
+                # If the first frame (no matches) then use the keypoints one
+                if "left_match_strength" not in current_frame.imgs_processed:
+                    mosaic = np.hstack((
+                        current_frame.imgs_processed["left_with_keypoints"],
+                        current_frame.imgs_processed["right_with_keypoints"]))
+                else:
+                    mosaic = np.hstack((
+                        current_frame.imgs_processed["left_match_strength"],
+                        current_frame.imgs_processed["right_match_strength"]))
 
             # Add timestamp in bottom right
             mosaic_shape = np.shape(mosaic)
             text_pos = (mosaic_shape[1] - 100, mosaic_shape[0] - 20)
             cv.putText(
-                mosaic, f"t = {last_frame.sim_time_s:.2f} s", text_pos,
-                cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), thickness=1,
+                mosaic, f"t = {current_frame.sim_time_s:.2f} s", text_pos,
+                cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), thickness=1,
                 lineType=cv.LINE_AA)
 
             # Update the image in the image window

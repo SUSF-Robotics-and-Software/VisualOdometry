@@ -21,4 +21,8 @@
     "camera_name_left": "left",
     "camera_name_right": "right"
 
+    // Start and end times for processing
+    "start_sim_time_s": 0.0
+    "end_sim_time_s":   350.0
+
 }

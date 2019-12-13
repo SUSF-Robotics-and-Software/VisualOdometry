@@ -1,4 +1,7 @@
 {
     // File in which the parameters for the stereo bench can be found.
     "stereo_bench_params": "stereo_bench_devon.hjson"
+
+    // Number of points to take for "strong" matches during feature matching
+    "num_strong_points": 50
 }

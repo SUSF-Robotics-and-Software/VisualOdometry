@@ -12,7 +12,6 @@ from enum import Enum
 import os.path
 import glob
 import re
-import numpy as np
 import cv2 as cv
 import dateutil.parser
 import hjson
@@ -27,6 +26,8 @@ class StereoFrame:
         self.sim_time_s = sim_time_s
         self.img_left = None
         self.img_right = None
+        self.imgs_processed = {}
+        self.data = {}
         self.lc_pose_ws = None
 
 class StereoImageSource:
@@ -149,6 +150,12 @@ class StereoImageSource:
         if not self.active:
             return None
 
+        # Check for end of sequence
+        if sim_time_s > self.params["end_sim_time_s"]:
+            self.active = False
+            print("End of sequence")
+            return None
+
         # TODO: Need to split this into two functions, one for each source type
 
         # Iterating through the reversed timeline we can easily find the
@@ -170,7 +177,7 @@ class StereoImageSource:
 
         # Or if the sim_time is greater than the end of the available
         # simulation time
-        elif self.timeline[-1][0] < sim_time_s:
+        elif sim_time_s > self.params["end_sim_time_s"]:
             self.active = False
             return None
 
