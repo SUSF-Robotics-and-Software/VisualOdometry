@@ -4,20 +4,14 @@ dataset see `datasets/readme.md`
 """
 
 import threading
-from datetime import datetime
-import tkinter as tk
 import time
+from datetime import datetime
 
 import numpy as np
 import cv2 as cv
-from PIL import ImageTk, Image
 
 from vis_odo import VisOdo, StereoImageSource, Pose
-
-# Image window "new data" mutex and associated image store. Setting the image
-# value to False will close the window. Setting to None will have no effect
-mtx_image_window = threading.Lock()
-mth_image_window_new_img = None
+import image_window
 
 # Interval after which the image window should check for an update to the image
 IMAGE_WINDOW_CHECK_INTERVAL_MS = 100
@@ -55,12 +49,9 @@ def main():
     # display both images side by side so we want the width to be 2 * width
     image_size = (image_source.image_size[1] * 2, image_source.image_size[0])
 
-    print(f"{image_size}")
-
     # Start the image window
-    image_window_thread = threading.Thread(
-        target=image_window_start, args=(image_size))
-    image_window_thread.start()
+    image_window.start_image_window(
+        "Visual Odometry: Devon Island Test", image_size)
 
     # Start the VisOdo processing
     vis_odo.start(image_source)
@@ -78,11 +69,6 @@ def main():
             sim_time_s += sim_time_step_s
         else:
             print(exit_msg)
-
-    # Close the window
-    if mtx_image_window.acquire():
-        mth_image_window_new_img = False
-        mtx_image_window.release()
 
     # Print exit message
     print("End of cyclic activity, simulation stopped")
@@ -132,84 +118,14 @@ def cyclic_activity(sim_time_s, vis_odo, rov_pose_est):
                 lineType=cv.LINE_AA)
 
             # Update the image in the image window
-            image_window_update(mosaic)
+            if image_window.img_window_ref:
+                image_window.img_window_ref.update_image(mosaic)
 
         print(f"[---] {sim_time_s:.2f}: Rover pose estimate updated")
 
     # Finally return true with no message
     return (True, "")
 
-
-def image_window_start(*args, **kwargs):
-    """
-    Start the thread which displays the image passed into it by
-    `image_window_update`.
-    """
-
-    print("Starting image display window")
-
-    # Create the tkinter window which will display the images we're working
-    # with
-    img_window = tk.Tk()
-    img_window.title("Visual Odometry: Devon Island Test")
-
-    # Start with a black image
-    blank_image = np.zeros((args[0], args[1], 3), np.uint8)
-
-    # Create a canvas in the window which will hold our images
-    img_canvas = tk.Canvas(
-        img_window,
-        width=args[0],
-        height=args[1])
-    image_on_canvas = img_canvas.create_image(
-        0, 0, image=blank_image, anchor=tk.NW)
-
-    img_window.after(
-        0, image_window_check, img_window, img_canvas, image_on_canvas)
-    img_window.mainloop()
-
-
-def image_window_check(img_window, img_canvas, image_on_canvas):
-    """
-    Check to see if an updated image is available. To update the image call
-    `image_window_update` with the OpenCV image (numpy ndarray)
-    """
-    global mth_image_window_new_img
-
-    if mtx_image_window.acquire(False):
-
-        # If there's a new image (if it's a numpy array)
-        if type(mth_image_window_new_img).__module__ == np.__name__:
-
-            # Update the tkinter window
-            img = ImageTk.PhotoImage(
-                image=Image.fromarray(mth_image_window_new_img))
-            img_canvas.create_image(0, 0, image=img, anchor=tk.NW)
-            image_on_canvas = img_canvas.itemconfig(image_on_canvas, image=img)
-
-        # Or if we have an instruction to destroy the window
-        elif mth_image_window_new_img == False:
-            img_window.destroy()
-
-        # Release the lock
-        mtx_image_window.release()
-
-    # Add another check
-    img_window.after(
-        IMAGE_WINDOW_CHECK_INTERVAL_MS, image_window_check,
-        img_window, img_canvas, image_on_canvas)
-
-def image_window_update(img):
-    """
-    Update the image in the image window
-    """
-    global mth_image_window_new_img
-
-    # Acquire the lock, update the image, and release the lock
-    if mtx_image_window.acquire():
-        print(f"Updating image with one of size {img.shape}")
-        mth_image_window_new_img = img
-        mtx_image_window.release()
 
 if __name__ == "__main__":
     threading.Thread(target=main).start()
