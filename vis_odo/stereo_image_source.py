@@ -1,24 +1,33 @@
+"""
+The StereoImageSource is a short module to handle image loading for the 
+vis_odo package. It should be used to either:
+
+1. Load data from a dataset (such as the Devon Island Traverse)
+1. Get images directly from the cameras
+
+TODO: More information to come
+"""
+
 from enum import Enum
+import os.path
+import glob
+import re
 import numpy as np
 import cv2 as cv
 import dateutil.parser
 import hjson
-import os.path
-import glob
-import re
 
 class StereoFrame:
     """
-    Class storing a pair of images, a simulation time, and the pose of the 
+    Class storing a pair of images, a simulation time, and the pose of the
     left camera frame in the world sim frame.
     """
-    img_left = None
-    img_right = None
-    sim_time_s = None
-    lc_pose_ws = None
 
     def __init__(self, sim_time_s):
         self.sim_time_s = sim_time_s
+        self.img_left = None
+        self.img_right = None
+        self.lc_pose_ws = None
 
 class StereoImageSource:
     """
@@ -27,12 +36,13 @@ class StereoImageSource:
 
     class SourceType(Enum):
         """
-        Enum which specifies where this source is going to get it's images from.
+        Enum which specifies where this source is going to get it's images
+        from.
 
         NONE - Source not yet initialised, no images will be produced
-        DATASET - Images will come from a dataset and will be available at 
+        DATASET - Images will come from a dataset and will be available at
             specific times
-        
+
         TODO: Add camera streams
         """
         NONE = 0
@@ -41,6 +51,7 @@ class StereoImageSource:
     def __init__(self):
         self.last_accessed_index = False
         self.source_type = StereoImageSource.SourceType.NONE
+        self.image_size = None
 
     @classmethod
     def from_dataset(cls, source_param_file_path):
@@ -100,7 +111,7 @@ class StereoImageSource:
                 # If the index matches one of the keys in the image dictionary
                 if line_parts[0] in img_dict.keys():
 
-                    # Append to the timeline the sim time and image dictionary 
+                    # Append to the timeline the sim time and image dictionary
                     # entry
                     sim_time_s = ((dateutil.parser.parse(line_parts[1])
                          - init_time).total_seconds())
@@ -120,7 +131,11 @@ class StereoImageSource:
             #    line_parts = line.split(' ')
 
         # Sort the timeline
-        src.timeline.sort(key = lambda tup: tup[0] )
+        src.timeline.sort(key=lambda tup: tup[0])
+
+        # Load the first image to get the image size
+        first_img = cv.imread(src.timeline[0][2]["left"])
+        src.image_size = first_img.shape
 
         return src
 
@@ -130,7 +145,7 @@ class StereoImageSource:
         """
 
         # Iterating through the reversed timeline we can easily find the
-        # most evolved timeline item which has a trigger time lower than 
+        # most evolved timeline item which has a trigger time lower than
         # the current sim_time.
         (frame_sim_time_s, frame_index, img_dict) = \
             next(((t, i, d) for (t, i, d) in reversed(self.timeline) \

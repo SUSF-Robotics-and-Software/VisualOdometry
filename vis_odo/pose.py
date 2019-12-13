@@ -33,7 +33,7 @@ class Pose:
 
             usage
             -----
-                # Create a new pose of the body frame in the base frame and 
+                # Create a new pose of the body frame in the base frame and
                 # set it to be at y = 1, x = z = 0, with a yaw of 0.5 radians.
                 body_init_pose_base = Pose.
                     from_pos_angles([0, 1, 0], [0, 0, 0.5])
@@ -41,4 +41,7 @@ class Pose:
         pass
 
     def transform(self, translation_m, rotation_rad):
+        pass
+
+    def transform_by_pose(self, delta_pose):
         pass
