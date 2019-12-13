@@ -13,9 +13,6 @@ import cv2 as cv
 from vis_odo import VisOdo, StereoImageSource, Pose
 import image_window
 
-# Interval after which the image window should check for an update to the image
-IMAGE_WINDOW_CHECK_INTERVAL_MS = 100
-
 def main():
     """
     Run the main test on the Devon Island dataset
@@ -128,4 +125,5 @@ def cyclic_activity(sim_time_s, vis_odo, rov_pose_est):
 
 
 if __name__ == "__main__":
+    # Gives us nice auto-exit behaviour
     threading.Thread(target=main).start()
