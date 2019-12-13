@@ -1,4 +1,4 @@
 .vscode
 datasets/*
 !datasets/readme.md
-vis_odo/__pycache__
+__pycache__
