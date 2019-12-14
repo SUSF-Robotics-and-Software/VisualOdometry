@@ -6,15 +6,15 @@ dataset see `datasets/readme.md`
 import threading
 import time
 from datetime import datetime
+import faulthandler
 
 import numpy as np
 import cv2 as cv
-import faulthandler
 
 from vis_odo import VisOdo, StereoImageSource, Pose
 import image_window
 
-IMGS_TO_SHOW = "MATCH_STRENGTH" # Either KEYPOINTS, RAW,
+IMGS_TO_SHOW = "LMS_DEPTH" # Either KEYPOINTS, RAW, MATCH_STRENGH, LMS_DISP
 
 faulthandler.enable()
 
@@ -130,6 +130,15 @@ def cyclic_activity(sim_time_s, vis_odo, rov_pose_est):
                     mosaic = np.hstack((
                         current_frame.imgs_processed["left_match_strength"],
                         current_frame.imgs_processed["right_match_strength"]))
+            elif IMGS_TO_SHOW == "LMS_DEPTH":
+                if "left_match_strength" not in current_frame.imgs_processed:
+                    mosaic = np.hstack((
+                        current_frame.imgs_processed["left_with_keypoints"],
+                        current_frame.imgs_processed["depth_map"]))
+                else:
+                    mosaic = np.hstack((
+                        current_frame.imgs_processed["left_match_strength"],
+                        current_frame.imgs_processed["depth_map"]))
 
             # Add timestamp in bottom right
             mosaic_shape = np.shape(mosaic)
