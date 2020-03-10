@@ -6,9 +6,11 @@ images over time.
 import os.path
 from threading import Thread, Lock
 import time
+from math import isclose
 
 import cv2 as cv
 from cv2 import ximgproc
+from matplotlib import cm
 import numpy as np
 import hjson
 
@@ -323,48 +325,51 @@ class VisOdo:
         frame.data["keypoints_right"] = keypoints_right
         frame.data["descriptors_right"] = descriptors_right
 
-        # ---- DISPARITY MAP GENERATION -----
-
-        # Convert images to greyscale for disaprity calculations
-        img_left_grey = cv.cvtColor(frame.img_left, cv.COLOR_BGR2GRAY)
-        img_right_grey = cv.cvtColor(frame.img_right, cv.COLOR_BGR2GRAY)
-
-        # Calculate disparity maps
-        disparity_left = self.stereo_left.compute(
-            img_left_grey, img_right_grey)
-        disparity_right = self.stereo_right.compute(
-            img_right_grey, img_left_grey)
-
-        # Filter disparity maps
-        frame.data["disparity_map"] = self.wsl_filter.filter(
-            disparity_left, frame.img_left, None, disparity_right)
-
-        # Calculate depth maps
-        frame.data["depth_map"] = np.divide(
-            self.stereo_params["stereo_baseline_m"]
-            * self.stereo_params["focal_length_m"],
-            frame.data["disparity_map"])
-
-        # Plot the disparity map
-        if self.params["plot_depth_map"]:
-            # Need to normalise the depth map so we can display it in u8,
-            # normalize based on the maximum depth map distance
-            # TODO: this doesn't actually work, end up with very small depths
-            depth_norm = np.vectorize(
-                lambda x: x * 255 / self.params["depth_map_max_dist_m"])(
-                    frame.data["depth_map"])
-            print(f"depth: {depth_norm[100][200]}, {frame.data['depth_map'][100][200]}")
-            frame.imgs_processed["depth_map"] = cv.cvtColor(
-                np.uint8(depth_norm), cv.COLOR_GRAY2BGR)
-
         # From this point on if the last_frame is None no more processing can
         # be done so we skip to the end
         if self.last_frame is not None:
 
             # ---- FEATURE MATCHING ----
-            frame = self._match_features(frame)
+            frame = self._match_features_previous(frame)
+            frame = self._match_fetaures_current(frame)
 
+            # ---- CALCULATE FEATURE DEPTH ----
+            frame = self._calc_feature_depth(frame)
 
+            # Draw matches with depth gradient
+            max_depth = max(frame.data["feature_depth_m"])
+            min_depth = min(frame.data["feature_depth_m"])
+            print(f"depth min/max: {min_depth}, {max_depth}")
+
+            # Get the color map data, normalised to the maximum depth color
+            norm_depths = [d / self.params["depth_map_max_dist_m"]
+                           for d in frame.data["feature_depth_m"]]
+            cmap = cm.get_cmap('jet')
+            depth_colors = [cmap(dn) for dn in norm_depths]
+            
+            # Need to convert the colors to RGB 8 bit
+            depth_colors = [
+                (int(255*r), int(255*g), int(255*b))
+                for (r, g, b, a) in depth_colors]
+
+            img_left_depth = frame.img_left
+            img_right_depth = frame.img_right
+
+            for i in range(len(depth_colors)):
+                point_left = frame.data["keypoints_left_sorted"][i].pt
+                point_right = frame.data["keypoints_right_sorted"][i].pt
+                img_left_depth = cv.circle(
+                    img_left_depth,
+                    (int(point_left[0]), int(point_left[1])),
+                    4, depth_colors[i])
+                img_right_depth = cv.circle(
+                    img_right_depth,
+                    (int(point_right[0]), int(point_right[1])),
+                    4, depth_colors[i])
+
+            frame.imgs_processed["left_feat_depth"] = img_left_depth
+            frame.imgs_processed["right_feat_depth"] = img_right_depth
+            
         # End time
         time_end = time.time()
         print(f"VisOdo compute time: {(time_end - time_start):.6f} s")
@@ -384,7 +389,7 @@ class VisOdo:
 
         return status_rpt
 
-    def _match_features(self, current_frame):
+    def _match_features_previous(self, current_frame):
         """
         Match features between the current frame and the last frame
         """
@@ -458,5 +463,81 @@ class VisOdo:
             0:self.params["num_strong_points"]]
         current_frame.data["matches_right_strong"] = matches_right[
             0:self.params["num_strong_points"]]
+
+        return current_frame
+
+    def _match_fetaures_current(self, current_frame):
+        """
+        Match the features between the left and right images
+        """
+
+        # Compute matches between L & R
+        matches = self.bf_matcher.match(
+            current_frame.data["descriptors_left"],
+            current_frame.data["descriptors_right"])
+
+        # Sort the matches based on distance
+        matches_sorted = sorted(matches, key=lambda x: x.distance)
+
+        keypoints_left = current_frame.data["keypoints_left"]
+        keypoints_right = current_frame.data["keypoints_right"]
+
+        # Select the left and right keypoint indexes from the sorted matches
+        keypoints_left_sorted = [
+            keypoints_left[m.queryIdx] for m in matches_sorted]
+        keypoints_right_sorted = [
+            keypoints_right[m.trainIdx] for m in matches_sorted]
+
+        # Save these into the data
+        current_frame.data["matches_lr_sorted"] = matches_sorted
+        current_frame.data["keypoints_left_sorted"] = keypoints_left_sorted
+        current_frame.data["keypoints_right_sorted"] = keypoints_right_sorted
+
+        # Draw the matches onto an image
+        current_frame.imgs_processed["matches_lr"] = cv.drawMatches(
+            current_frame.img_left, keypoints_left,
+            current_frame.img_right, keypoints_right, matches_sorted[:50],
+            outImg=None, flags=2, matchColor=(0, 255, 0))
+
+        return current_frame
+
+    def _calc_feature_depth(self, current_frame):
+        """
+        Calculate the feature depth by determining the disparity of each
+        keypoint, then applying the depth equation
+
+            depth_m = focal_length_m * baseline_m / (disparity_pixels * pixel_size_m)
+        """
+
+        # ---- CALCULATE DISPARITY ----
+
+        disparity = []
+
+        for i in range(len(current_frame.data["keypoints_left_sorted"])):
+
+            # If the y distance is greater than the epipolar matching limit
+            # then ignore this point and set it's value to NaN
+            ydist = current_frame.data["keypoints_left_sorted"][i].pt[1]\
+                - current_frame.data["keypoints_right_sorted"][i].pt[1]
+            
+            if abs(ydist) >= self.params["epipolar_match_limit_pixels"]:
+                disparity.append(np.nan)
+            else:
+                disparity.append(
+                    current_frame.data["keypoints_left_sorted"][i].pt[0]
+                    - current_frame.data["keypoints_right_sorted"][i].pt[0])
+
+        current_frame.data["feature_disp_pixels"] = disparity
+
+        # ---- CALCULATE DEPTH ----
+
+        depth = [
+            self.stereo_params["focal_length_m"]
+            * self.stereo_params["stereo_baseline_m"]
+            / (d * self.stereo_params["pixel_size_m"]) if not isclose(d, 0.0)
+            else self.params["depth_map_max_dist_m"]
+            for d in disparity]
+
+        current_frame.data["feature_depth_m"] = depth
 
         return current_frame

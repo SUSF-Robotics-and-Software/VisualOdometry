@@ -9,9 +9,13 @@
 
     // Stereo vision (disparity) parameters
     "stereo_max_disparity": 128,
-    "stereo_block_size": 15,
+    "stereo_block_size": 5,
     "stereo_lambda": 2000.0,
-    "stereo_sigma": 1.2,
+    "stereo_sigma": 1.4,
+
+    // Epipolar matching limit (used to ignore feature matches with a y 
+    // distance greater than specified here
+    "epipolar_match_limit_pixels": 1.0
     
     // Maximum depth map distance
     "depth_map_max_dist_m": 16,

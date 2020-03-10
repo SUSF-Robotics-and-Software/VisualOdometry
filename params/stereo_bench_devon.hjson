@@ -7,6 +7,11 @@
     //  Units: meters
     "stereo_baseline_m":    0.239977002,
 
+    // Size of the pixels in meters
+    //
+    // Units: meters
+    "pixel_size_m": 3.75e-6,
+    
     // Focal length of the rectified cameras in meters. Based on 
     //  387.599884033 pixels * 3.75 µm
     //

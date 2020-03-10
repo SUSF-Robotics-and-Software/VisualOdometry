@@ -14,7 +14,8 @@ import cv2 as cv
 from vis_odo import VisOdo, StereoImageSource, Pose
 import image_window
 
-IMGS_TO_SHOW = "LMS_DEPTH" # Either KEYPOINTS, RAW, MATCH_STRENGH, LMS_DISP
+IMGS_TO_SHOW = "FEAT_DEPTH" # Either KEYPOINTS, RAW, MATCH_STRENGH, MATCHES_LR, FEAT_DEPTH
+BLOCK_WHEN_PROC = True # Whether or not to block while processing an image
 
 faulthandler.enable()
 
@@ -130,15 +131,25 @@ def cyclic_activity(sim_time_s, vis_odo, rov_pose_est):
                     mosaic = np.hstack((
                         current_frame.imgs_processed["left_match_strength"],
                         current_frame.imgs_processed["right_match_strength"]))
-            elif IMGS_TO_SHOW == "LMS_DEPTH":
-                if "left_match_strength" not in current_frame.imgs_processed:
+            elif IMGS_TO_SHOW == "MATCHES_LR":
+                if "matches_lr" not in current_frame.imgs_processed:
                     mosaic = np.hstack((
                         current_frame.imgs_processed["left_with_keypoints"],
-                        current_frame.imgs_processed["depth_map"]))
+                        current_frame.imgs_processed["right_with_keypoints"]
+                    ))
+                else:
+                    mosaic = current_frame.imgs_processed["matches_lr"]
+            elif IMGS_TO_SHOW == "FEAT_DEPTH":
+                if "left_feat_depth" not in current_frame.imgs_processed:
+                    mosaic = np.hstack((
+                        current_frame.imgs_processed["left_with_keypoints"],
+                        current_frame.imgs_processed["right_with_keypoints"]
+                    ))
                 else:
                     mosaic = np.hstack((
-                        current_frame.imgs_processed["left_match_strength"],
-                        current_frame.imgs_processed["depth_map"]))
+                        current_frame.imgs_processed["left_feat_depth"],
+                        current_frame.imgs_processed["right_feat_depth"]
+                    ))
 
             # Add timestamp in bottom right
             mosaic_shape = np.shape(mosaic)
